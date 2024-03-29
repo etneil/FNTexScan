@@ -256,7 +256,7 @@ proc getSMParamString*(thy: FNTheory): string =
     for V in SM_report["VCKM_slice"]:
         result &= $V & ","
     
-    result = result[.. ^2]
+    result = result[0.. ^2]
 
 proc getFullSMParamString*(thy: FNTheory): string = 
     let SM_report = getSMParams(thy)
@@ -264,7 +264,7 @@ proc getFullSMParamString*(thy: FNTheory): string =
     for x in SM_report:
         result &= $x & ","
 
-    result = result[.. ^2]
+    result = result[0.. ^2]
 
 
 

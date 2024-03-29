@@ -11,7 +11,7 @@ const err_Md_SM_ref = [0.42e-3, 0.015, 0.14]
 const Mu_SM_ref = [1.17e-3, 0.543, 148.1]
 const err_Mu_SM_ref = [0.35e-3, 0.072, 1.3]
 
-## CKM entries from PDG review(?)
+## CKM entries from PDG review
 #     [V12, V23, V13]:
 const CKM_SM_ref = [0.2245, 0.0410, 0.00382]
 const err_CKM_SM_ref = [0.00067, 0.00085, 0.00011]

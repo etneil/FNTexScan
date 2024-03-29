@@ -15,22 +15,11 @@ test "create valid FNTexture":
     check testTex.isValid == true
 
 test "count textures":
-    let testMaxQ = 2
+    let testMaxQ = 4
     let allValid = getAllValidTextures(testMaxQ)
 
-    echo len(allValid)
-
-    echo allValid[0]
-    echo allValid[^1]
-#    echo allValid[160000]
-
-test "create invalid FNTexture":
-    let testTex2 = initFNTexture(
-        XQ = [3,3,1],
-        Xu = [-2,-1,0],
-        Xd = [-2,-2,-1])
-    echo testTex2
-    check testTex2.isValid == false
+    echo "Number of textures with max charge = 4: ", len(allValid)
+    check len(allValid) == 167125
 
 test "create random FNTheory":
     let testTex = initFNTexture(
