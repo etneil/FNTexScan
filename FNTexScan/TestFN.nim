@@ -15,6 +15,20 @@ test "create valid FNTexture":
     echo testTex
     check testTex.isValid == true
 
+test "FNTexture string conversion":
+    let testTex = initFNTexture(
+        XQ = [3,3,0],
+        Xu = [-2,-1,0],
+        Xd = [-2,-2,-1])
+    
+    let texStr = testTex.toCompactString()
+    echo texStr
+
+    let rebuildTex = texStr.fromCompactString()
+    echo rebuildTex
+
+    check testTex == rebuildTex
+
 test "count textures":
     let testMaxQ = 4
     let allValid = getAllValidTextures(testMaxQ)
@@ -111,9 +125,11 @@ test "check Fedele fixed model":
     let fSMPars = reportSMParams(fThy)
     echo "Fedele SM params: ", fSMPars
 
-    echo "Fedele SM score, Xi = ", score_SM_deviations(fThy, max_exp = true)
+    let fedeleXi =  score_SM_deviations(fThy, max_exp = true)
 
+    echo "Fedele SM score, Xi = ", $fedeleXi
 
+    check fedeleXi < 2.0
 
 
 test "optimize random FNTheory":

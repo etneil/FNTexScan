@@ -1,5 +1,6 @@
 import std/algorithm
 import tables
+import strutils
 
 type FNTexture* = object
     XQ*: array[3, int]
@@ -54,6 +55,8 @@ proc `==`(tex1, tex2: FNTexture): bool =
     result = tex1_sort.XQ == tex2_sort.XQ
     result = result and (tex1_sort.Xu == tex2_sort.Xu)
     result = result and (tex1_sort.Xd == tex2_sort.Xd)
+
+
 
 proc mirror*(tex: FNTexture): FNTexture =
     result.XQ = [-tex.XQ[0], -tex.XQ[1], -tex.XQ[2]]
@@ -114,3 +117,19 @@ proc getAllValidTextures*(max_Q: int = 4): seq[FNTexture] =
     for absXQ in resultAbsXQ.keys:
         for tex in resultAbsXQ[absXQ]:
             result.add tex
+
+
+proc toCompactString*(tex: FNTexture): string =
+    let XQ_str = $tex.XQ[0] & "," & $tex.XQ[1] & "," & $tex.XQ[2]
+    let Xu_str = $tex.Xu[0] & "," & $tex.Xu[1] & "," & $tex.Xu[2]
+    let Xd_str = $tex.Xd[0] & "," & $tex.Xd[1] & "," & $tex.Xd[2]
+    
+    result = XQ_str & "," & Xu_str & "," & Xd_str
+
+proc fromCompactString*(texStr: string): FNTexture =
+    let X_seq: seq[string] = texStr.split(',')
+    let XQ = [X_seq[0].parseInt, X_seq[1].parseInt, X_seq[2].parseInt]
+    let Xu = [X_seq[3].parseInt, X_seq[4].parseInt, X_seq[5].parseInt]
+    let Xd = [X_seq[6].parseInt, X_seq[7].parseInt, X_seq[8].parseInt]
+
+    result = initFNTexture(XQ=XQ, Xu=Xu, Xd=Xd)
