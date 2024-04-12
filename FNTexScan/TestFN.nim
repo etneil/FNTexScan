@@ -5,6 +5,7 @@ import FNTexture
 import FNTheory
 import FNCost
 import random
+import math
 
 test "create valid FNTexture":
     let testTex = initFNTexture(
@@ -28,27 +29,57 @@ test "create random FNTheory":
         Xd = [-2,-2,-1])
     let testThy = makeRandomTheory(testTex, prior_type=TheoryPriorType.uniform)
     echo testThy
-    
-    let testThy2 = makeRandomTheory(testTex, prior_type=TheoryPriorType.lognormal)
-    echo testThy2
 
-test "fixed FNTheory tests":
+    discard testThy.Yukawa()
+    discard getSMParams(testThy)
+
+test "rotation matrices":
     let testTex = initFNTexture(
-        XQ = [3,2,0],
-        Xu = [-2,-4,0],
-        Xd = [-3,-3,-4])
-    var test_C: array[37, float]
-    for i in 0..<36:
-        test_C[i] = (i.float+1) / 36
-    test_C[36] = 0.2
+        XQ = [3,3,0],
+        Xu = [-2,-1,0],
+        Xd = [-2,-2,-1]
+    )
+    let testThy = makeRandomTheory(testTex, prior_type=TheoryPriorType.lognormal)
 
-    let testThy = FNTheory(tex: testTex, C: test_C)
+    var Uu, Ud, Ku, Kd: Tensor[Complex64]
 
-    echo "Yukawas: ", testThy.Yukawa()
+    (Uu, Ud, Ku, Kd) = testThy.reportRotationMatrices()
 
-    echo testThy.C
-    echo "getSM: ", getSMParams(testThy)
-    echo reportSMParams(testThy)
+    # Test unitarity
+    let U_test = Uu * Uu.conjugate().transpose()
+    let K_test = Ku * Ku.conjugate().transpose()
+
+    check abs(sum(U_test) - 3) <= 1e-6
+    check abs(sum(K_test) - 3) <= 1e-6    
+
+    # Verify that product of rotations gives the Yukawa matrices back
+    let (Yu, Yd) = testThy.Yukawa()
+    let SMPars = testThy.getSMParams()
+
+    let Mu = [
+        [SMpars[0], 0.0, 0.0],
+        [0.0, SMpars[1], 0.0],
+        [0.0, 0.0, SMpars[2]]
+    ].toTensor().asType(Complex[float64]) / FNTheory.mass_factor.complex64
+    let Md = [
+        [SMpars[3], 0.0, 0.0],
+        [0.0, SMpars[4], 0.0],
+        [0.0, 0.0, SMpars[5]]
+    ].toTensor().asType(Complex[float64]) / FNTheory.mass_factor.complex64
+
+    let Yu_rebuild = Uu * Mu * Ku.conjugate().transpose()
+    let Yd_rebuild = Ud * Md * Kd.conjugate().transpose()
+
+    let Yu_diff = Yu - Yu_rebuild
+    let Yd_diff = Yd - Yd_rebuild
+
+    check abs(sum(Yu_diff)) <= 1e-6
+    check abs(sum(Yd_diff)) <= 1e-6
+
+    echo "Yu diff: "
+    echo Yu_diff
+    echo "Yd diff: "
+    echo Yd_diff
 
 test "check Fedele fixed model":
     # arXiv:2009.05587, appendix A
@@ -58,7 +89,7 @@ test "check Fedele fixed model":
         Xd = [-2, -2, -2]
     )
 
-    # CU_re, CU_im, CD_re, CD_im, eps
+    # CU_re, CU_im, CD_re, CD_im, ln(eps)
     let fC = [
         0.296996, -0.171824, -0.218137,
         -0.288732, 0.178763, 0.225587,
@@ -78,7 +109,7 @@ test "check Fedele fixed model":
     let fThy = FNTheory(tex: fTex, C: fC)
 
     let fSMPars = reportSMParams(fThy)
-    echo "Fedele SM params: ", reportSMParams(fThy)
+    echo "Fedele SM params: ", fSMPars
 
     echo "Fedele SM score, Xi = ", score_SM_deviations(fThy, max_exp = true)
 

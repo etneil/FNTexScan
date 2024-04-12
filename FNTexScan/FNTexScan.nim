@@ -1,6 +1,48 @@
 import arraymancer
-import FNTexture
+import FNTexture, FNTheory, FNCost
+import random
+import tables
 import std/algorithm
+import docopt
+import suru
+
+const doc = """
+FNTexScan - scan and study Frogatt-Nielsen textures.
+Companion code for the paper arXiv:2306.08026.
+
+Commands:
+    scan_all -  Scan all textures; create a file 
+                listing all textures which are "good",
+                defined by <good_frac> being within a
+                factor of 5 of the SM.  (Called "F_5" in the paper.)
+    rescan -    Re-run scan of the top N textures
+                taken from the given texture file.
+                This is meant to be "high resolution",
+                i.e. set thy_per_tex higher here.
+    study -     Detailed study of a given texture.
+                Data files are output to <report_dir>; 
+                created if it does not exist, files
+                are overwritten if present.
+                Texture should be specified by a sequence
+                of 7 numbers, separated by commas:
+                XQ1,XQ2,Xu1,Xu2,Xd1,Xd2,Xd3
+
+                Note: in our conventions XQ3=Xu3=0.
+
+Usage:
+    FNTexScan scan_all <max_Q> <tex_file> [--thy_per_tex=<tpt>] [--good_frac=<gf>] [--prior_uniform | --prior_wide ]
+    FNTexScan rescan <top_N> <tex_file> [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
+    FNTexScan study <texture> <report_dir> [--opt_SM] [--prior_uniform | --prior_wide]
+    FNTexScan -h | -help
+
+Options:
+    --thy_per_tex=<tpt>  Random theories per texture [default: 1,000].
+    --good_frac=<gf>     Fraction of theories within 5x to consider a texture "good" [default: 0.05].
+    --opt_SM             Optimize all parameters (not just epsilon) to fit the Standard Model.
+    --prior_uniform      Use uniform prior instead of default lognormal.
+    --prior_wide         Use a wider-than-normal lognormal prior.
+    -h --help            Show this info.
+"""
 
 proc count_below*(scores: seq[float], target_score: float = 5.0): int =
     result = 0
@@ -8,10 +50,45 @@ proc count_below*(scores: seq[float], target_score: float = 5.0): int =
         if s <= target_score:
             result += 1
 
+proc run_scan_all(max_Q: int, thy_per_tex: int, texture_file: string, good_frac: float, 
+                    prior_type: TheoryPriorType) =
+    var all_textures = getAllValidTextures(max_Q)
+
+    let f = open(texture_file, fmWrite)
+
+    var all_costs, all_eps, all_costs_SM, all_traces: seq[float] = @[]
+    var optThy: FNTheory
+    var opt_eps: float
+
+    for i, tex in suru(all_textures):
+        # Reset seqs for this texture
+        all_costs = @[]
+        all_costs_SM = @[]
+        all_eps = @[]
+        all_traces = @[]
+
+        for k in 0 .. thy_per_tex:
+            optThy = makeRandomTheory(tex=tex, prior_type=prior_type)
+
+            try:
+                opt_eps = optimize_eps(optThy, brute_force = false, max_exp = true)
+            except Exception as e:
+                opt_eps = optimize_eps(optThy, brute_force = true, max_exp = true)
+
+
+
+proc run_rescan() =
+    discard
+
+proc run_study() =
+    discard
+
+
+
+
 
 when isMainModule:
     import FNTheory, FNCost, random, tables
-    import suru
     const max_Q = 4
 
     #[
@@ -302,7 +379,7 @@ when isMainModule:
         for k in 0 .. thy_per_tex:
 #            optThy = makeRandomTheory(tex=tex, prior_type="uniform")
 #            optThy = makeRandomTheory(tex=tex, prior_type="wide_lognormal")
-            optThy = makeRandomTheory(tex=tex, prior_type="lognormal")
+            optThy = makeRandomTheory(tex=tex, prior_type=TheoryPriorType.lognormal)
 
             try:
                 opt_eps = optimize_eps(optThy, brute_force = false, max_exp = true)

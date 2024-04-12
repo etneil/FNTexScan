@@ -87,7 +87,6 @@ proc score_SM_deviations*(thy: FNTheory, max_exp = false): float =
 
     let J = SM_params[24]
     if max_exp:
-#        discard
         result = check_max_exp(result, J, J_SM_ref)
     else:
         result += (J - J_SM_ref)^2 / err_J_SM_ref^2

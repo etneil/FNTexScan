@@ -15,7 +15,7 @@ randomize()
 const max_Q = 4
 const test_tex_i = 351439
 #const test_tex_i = 351642
-const scan_prior = "lognormal"
+const scan_prior = TheoryPriorType.lognormal
 #const scan_prior = "wide_lognormal"
 #const scan_prior = "uniform"
 

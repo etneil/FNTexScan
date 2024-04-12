@@ -5,6 +5,10 @@ import tables
 import std/strutils
 
 const I = complex64(0,1)
+const sqrt2 = 1.414214
+const vH = 246  # GeV
+
+const mass_factor* = vH / sqrt2
 
 # C vector specification:
 # C[0-8] = re_Cu
@@ -73,8 +77,6 @@ proc makeRandomTheory*(tex: FNTexture, prior_type: TheoryPriorType = uniform,
             C[i+9] = exp(mag[i]) * sin(phase[i])
 
     
-#    C[36] = ln(0.2)
-    # Jed's standard choice
     C[36] = ln(0.165959)
     result = FNTheory(tex: tex, C: C, hierarchy: ud_hierarchy)
 
@@ -169,11 +171,6 @@ proc getSMParams*(thy: FNTheory): array[25, float64] =
         Uu_dagger[i,j] * Ud_tens[j,k]
 
     # Convert Yukawa couplings to quark masses
-    const sqrt2 = 1.414214
-    const vH = 246  # GeV
-
-    const mass_factor = vH / sqrt2
-
     var Mu, Md: array[3, float]
 
     for i, M2 in Mu_sq:
@@ -224,6 +221,59 @@ proc reportMixing*(thy: FNTheory): array[8, float64] =
     result[5] = abs(Uu_tens[0,1]) / tr_Uu
     result[6] = abs(Uu_tens[0,2]) / tr_Uu
     result[7] = abs(Uu_tens[1,2]) / tr_Uu
+
+proc reportRotationMatrices*(thy: FNTheory): 
+    (Tensor[Complex64], Tensor[Complex64], Tensor[Complex64], Tensor[Complex64]) =
+    var Yu, Yd, Uu, Ud, Kd, Ku: Tensor[Complex64]
+    (Yu, Yd) = thy.Yukawa()
+
+    var Ud_raw, Uu_raw, Kd_raw, Ku_raw: array[9, Complex64]
+    var Md_sq, Mu_sq, Mu_sq_2, Md_sq_2: array[3, float64]
+
+    (Mu_sq, Uu_raw) = getMassMatrix(Yu)
+    (Md_sq, Ud_raw) = getMassMatrix(Yd)
+
+    Ud = Ud_raw.toTensor().reshape(3,3).transpose()
+    Uu = Uu_raw.toTensor().reshape(3,3).transpose()
+
+    # Find the Ku/Kd right-handed rotation matrices
+    # From the definition Yu = Uu Mu Ku^\dagger, we have:
+    # Yu^\dagger Yu = Ku Mu Uu^\dagger Uu Mu Ku^\dagger
+    # Yu^\dagger = Ku Mu^2 Ku^\dagger
+    # i.e. we can use the same routine we're using to get Uu
+    # to calculate Ku, except we pass in Yu^\dagger.
+
+    # (Mu_sq_2, Ku_raw) = getMassMatrix(conjugate(Yu).transpose())
+    # (Md_sq_2, Kd_raw) = getMassMatrix(conjugate(Yd).transpose())
+
+    # Kd = Kd_raw.toTensor().reshape(3,3).transpose()
+    # Ku = Ku_raw.toTensor().reshape(3,3).transpose()
+
+    # This should have worked, but mysteriously failed...  
+    # Another approach: K and U are unitary, inverse is trivial;
+    # M is diagonal, inverse is easy.  So instead, find K as follows:
+    # Yu^\dagger = Ku Mu Uu^\dagger, so
+    # Ku = Yu^\dagger Uu Mu^{-1}.
+
+    let Mu_inv = [
+        [1/sqrt(Mu_sq[0]), 0.0, 0.0],
+        [0.0, 1/sqrt(Mu_sq[1]), 0.0],
+        [0.0, 0.0, 1/sqrt(Mu_sq[2])]
+    ].toTensor().asType(Complex[float64])
+    
+    let Md_inv = [
+        [1/sqrt(Md_sq[0]), 0.0, 0.0],
+        [0.0, 1/sqrt(Md_sq[1]), 0.0],
+        [0.0, 0.0, 1/sqrt(Md_sq[2])]
+    ].toTensor().asType(Complex[float64])
+
+    Ku = Yu.conjugate().transpose() * Uu * Mu_inv
+    Kd = Yd.conjugate().transpose() * Ud * Md_inv
+
+    result = (Uu, Ud, Ku, Kd)
+
+
+
 
 proc reportSMParams*(thy: FNTheory): TableRef[string, seq[float]] =
     let SM_params = getSMParams(thy)
