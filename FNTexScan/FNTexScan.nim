@@ -5,6 +5,8 @@ import tables
 import std/algorithm
 import docopt
 import suru
+import strutils
+import os
 
 const doc = """
 FNTexScan - scan and study Frogatt-Nielsen textures.
@@ -15,10 +17,15 @@ Commands:
                 listing all textures which are "good",
                 defined by <good_frac> being within a
                 factor of 5 of the SM.  (Called "F_5" in the paper.)
-    rescan -    Re-run scan of the top N textures
-                taken from the given texture file.
+                This scan is *unranked* (i.e. unordered.)
+    rescan -    Re-run scan of all textures in the given
+                texture file, producing a new file, optionally
+                restricting output to just the top <top_N>.
                 This is meant to be "high resolution",
                 i.e. set thy_per_tex higher here.
+                This scan is *ranked* by Xi score,
+                i.e. output texture file is ordered,
+                and contains more detail (F2, F5, eps_avg).
     study -     Detailed study of a given texture.
                 Data files are output to <report_dir>; 
                 created if it does not exist, files
@@ -31,13 +38,14 @@ Commands:
 
 Usage:
     FNTexScan scan_all <max_Q> <tex_file> [--thy_per_tex=<tpt>] [--good_frac=<gf>] [--prior_uniform | --prior_wide ]
-    FNTexScan rescan <top_N> <tex_file> [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
-    FNTexScan study <texture> <report_dir> [--opt_SM] [--prior_uniform | --prior_wide]
+    FNTexScan rescan <tex_file> <report_file> [--top_N=<top_N>] [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
+    FNTexScan study <texture> <report_dir> [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
     FNTexScan -h | -help
 
 Options:
     --thy_per_tex=<tpt>  Random theories per texture [default: 1,000].
     --good_frac=<gf>     Fraction of theories within 5x to consider a texture "good" [default: 0.05].
+    --top_N=<top_N>      Report only this number of top-ranked textures, -1 to report all [default: -1].
     --opt_SM             Optimize all parameters (not just epsilon) to fit the Standard Model.
     --prior_uniform      Use uniform prior instead of default lognormal.
     --prior_wide         Use a wider-than-normal lognormal prior.
@@ -50,37 +58,208 @@ proc count_below*(scores: seq[float], target_score: float = 5.0): int =
         if s <= target_score:
             result += 1
 
+# Returns: F2, F5, eps_avg
+proc scanTexture(tex: FNTexture, thy_per_tex: int, prior_type: TheoryPriorType, optSM: bool):
+    (float, float, float) =
+
+    var all_costs, all_eps: seq[float] = @[]
+    var optThy: FNTheory
+    var opt_eps, opt_score: float
+
+    for k in 0 .. thy_per_tex:
+        optThy = makeRandomTheory(tex=tex, prior_type=prior_type)
+
+        try:
+            opt_eps = optimize_eps(optThy, brute_force = false, max_exp = true)
+        except Exception as e:
+            opt_eps = optimize_eps(optThy, brute_force = true, max_exp = true)
+
+        optThy.C[^1] = ln(opt_eps)
+
+        if optSM:
+            optThy = optimize_SM(optThy)
+
+        all_eps.add opt_eps
+        opt_score = optThy.scoreSMDeviations(max_exp = true)
+        all_costs.add opt_score
+
+    let num_good_2 = count_below(all_costs, target_score = 2.0)
+    let num_good_5 = count_below(all_costs, target_score = 5.0)
+
+    let F2 = (num_good_2 / thy_per_tex).float
+    let F5 = (num_good_5 / thy_per_tex).float
+    let eps_avg = sum(all_eps.toTensor()) / thy_per_tex.float
+
+    result = (F2, F5, eps_avg)
+
+
 proc run_scan_all(max_Q: int, thy_per_tex: int, texture_file: string, good_frac: float, 
                     prior_type: TheoryPriorType) =
     var all_textures = getAllValidTextures(max_Q)
 
     let f = open(texture_file, fmWrite)
+    defer: f.close()
 
-    var all_costs, all_eps, all_costs_SM, all_traces: seq[float] = @[]
-    var optThy: FNTheory
-    var opt_eps: float
+    var good_tex_indices: seq[int] = @[]
+    var F2, F5, eps_avg: float
 
     for i, tex in suru(all_textures):
-        # Reset seqs for this texture
-        all_costs = @[]
-        all_costs_SM = @[]
-        all_eps = @[]
-        all_traces = @[]
+        (F2, F5, eps_avg) = scanTexture(
+            tex=tex, 
+            thy_per_tex=thy_per_tex, 
+            prior_type=prior_type, 
+            optSM=false)
 
-        for k in 0 .. thy_per_tex:
-            optThy = makeRandomTheory(tex=tex, prior_type=prior_type)
+        if F5 > good_frac: 
+            good_tex_indices.add i
+            f.writeLine(tex.toCompactString())
 
-            try:
-                opt_eps = optimize_eps(optThy, brute_force = false, max_exp = true)
-            except Exception as e:
-                opt_eps = optimize_eps(optThy, brute_force = true, max_exp = true)
-
+    echo $len(good_tex_indices), " good textures found."
+    echo "Written to file: ", texture_file
 
 
-proc run_rescan() =
-    discard
+proc run_rescan(texture_file: string, report_file: string, top_N: int, thy_per_tex: int, 
+                opt_SM: bool, prior_type: TheoryPriorType) =
+    let strAllTex = readFile(texture_file)
+    var allTex: seq[FNTexture] = @[]
+    for texStr in strAllTex.split('\n'):
+        allTex.add texStr.fromCompactString()
 
-proc run_study() =
+    var F2, F5, eps_avg: float
+
+    var tableF2 = initOrderedTable[int, float]()
+    var tableF5 = initOrderedTable[int, float]()
+    var tableEpsAvg = initOrderedTable[int, float]()
+
+    # Run the scan
+    for i, tex in suru(allTex):
+        (F2, F5, eps_avg) = scanTexture(
+            tex=tex, 
+            thy_per_tex=thy_per_tex, 
+            prior_type=prior_type, 
+            optSM=optSM)
+
+        tableF2[i] = F2
+        tableF5[i] = F5
+        tableEpsAvg[i] = eps_avg
+
+    # Sort tables
+    proc sortValues(x,y: (int, float)): int = cmp(x[1], y[1])
+
+    tableF2.sort(sortValues, order=SortOrder.Descending)
+    
+    var tex_i: int
+    var this_tex: FNTexture
+    var texStr: string
+
+    let f_report = open(report_file, fmWrite)
+
+    for key, val in tableF2:
+        if tex_i < top_N:
+            this_tex = allTex[key]
+
+            texStr = this_tex.toCompactString()
+            f_report.writeLine(texStr, " ", val, " ", tableF5[key], " ", tableEpsAvg[key])
+
+        tex_i += 1
+
+
+proc run_study(texture: FNTexture, report_dir: string, thy_per_tex: int, 
+                opt_SM: bool, do_priors: bool, inverted: bool, prior_type: TheoryPriorType) =
+
+    # Make directory if it doesn't exist
+    if not dirExists(report_dir):
+        createDir(report_dir)
+
+    os.setCurrentDir(report_dir)
+
+    # Open report file paths, clobber if they exist
+    # Setup data file names
+    proc make_file_name(base_name: string): string =
+        result = base_name
+        if opt_SM:
+            result = result & "_SMopt"
+        if do_priors:
+            result = result & "_prior"
+        
+        result = result & ".csv"
+
+    var files = initTable[string, File]()
+
+    let data_keys = ["thy_data", "SM_data", "xi_data", "eps_data", "tuning_data", "rotation_data"]
+
+    for key in data_keys:
+        # Clobber files
+        let f = open(make_file_name(key), fmWrite)
+        f.writeLine(" ")
+        f.close()
+
+        # Open files for writing data
+        files[key] = open(make_file_name(key), fmAppend)
+
+    # Run texture scan and gather results
+    var randThy, optThy, copyThy: FNTheory
+    var opt_eps: float
+
+    var all_eps, all_xi, all_nat: seq[float] = @[]
+    var num_ud_flip = 0
+
+    var Uu, Ud, Ku, Kd: Tensor[Complex64]
+
+    for k in suru(0 ..< thy_per_tex):
+        randThy = makeRandomTheory(tex=texture, prior_type=prior_type)
+
+        if do_priors:
+            optThy = randThy
+        else:
+            opt_eps = optimize_eps(randThy, brute_force = false, max_exp = true)
+            optThy = FNTheory(tex: randThy.tex, C: randThy.C, hierarchy: randThy.hierarchy)
+            optThy.C[^1] = ln(opt_eps)
+
+        if opt_SM:
+            optThy = optimize_SM(optThy)
+
+        all_eps.add opt_eps
+        all_xi.add score_SM_deviations(optThy, max_exp=true)
+        all_nat.add naturalness_cost(optThy, sigma_weight=0.691)
+
+        (Uu, Ud, Ku, Kd) = optThy.reportRotationMatrices()
+
+        let optSMpars = optThy.reportSMParams()
+        
+        # Check for up/down mass inversion
+        if all_xi[^1] <= 2 and optSMpars["Mu"][0] > optSMpars["Md"][0]:
+            num_ud_flip += 1
+    
+        # Write data out
+        files["thy_data"].writeLine(optThy.getRawParamString())
+        files["SM_data"].writeLine(optThy.getSMParamString())
+        files["xi_data"].writeLine($all_xi[^1])
+        files["eps_data"].writeLine($opt_eps)
+        files["tuning_data"].writeLine($all_nat[^1])
+        
+        files["rotation_data"].writeLine($Uu.toFlatSeq())
+        files["rotation_data"].writeLine($Ud.toFlatSeq())
+        files["rotation_data"].writeLine($Ku.toFlatSeq())
+        files["rotation_data"].writeLine($Kd.toFlatSeq())
+
+    for filename, f in files:
+        f.close()
+
+    for target_xi in @[2.0, 5.0]:
+        let num_good = count_below(all_xi, target_score=target_xi)
+        echo "Xi < ", target_xi, " (normal): ",  num_good
+
+    echo "Num_ud_flip: ", num_ud_flip
+
+
+
+
+
+
+
+
+
     discard
 
 
