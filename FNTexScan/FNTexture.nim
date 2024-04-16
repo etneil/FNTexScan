@@ -128,8 +128,20 @@ proc toCompactString*(tex: FNTexture): string =
 
 proc fromCompactString*(texStr: string): FNTexture =
     let X_seq: seq[string] = texStr.split(',')
-    let XQ = [X_seq[0].parseInt, X_seq[1].parseInt, X_seq[2].parseInt]
-    let Xu = [X_seq[3].parseInt, X_seq[4].parseInt, X_seq[5].parseInt]
-    let Xd = [X_seq[6].parseInt, X_seq[7].parseInt, X_seq[8].parseInt]
+
+    var XQ, Xu, Xd: array[3,int]
+
+    if len(X_seq) == 7:
+        XQ = [X_seq[0].parseInt, X_seq[1].parseInt, 0]
+        Xu = [X_seq[2].parseInt, X_seq[3].parseInt, 0]
+        Xd = [X_seq[4].parseInt, X_seq[5].parseInt, X_seq[6].parseInt]
+    elif len(X_seq) == 9:
+        XQ = [X_seq[0].parseInt, X_seq[1].parseInt, X_seq[2].parseInt]
+        Xu = [X_seq[3].parseInt, X_seq[4].parseInt, X_seq[5].parseInt]
+        Xd = [X_seq[6].parseInt, X_seq[7].parseInt, X_seq[8].parseInt]
+    else:
+        raise newException(ValueError, "Invalid texture string.")
+
+
 
     result = initFNTexture(XQ=XQ, Xu=Xu, Xd=Xd)
