@@ -40,11 +40,11 @@ Commands:
 Usage:
     FNTexScan scan_all <max_Q> <texture_file> [--thy_per_tex=<tpt>] [--good_frac=<gf>] [--prior_uniform | --prior_wide ]
     FNTexScan rescan <texture_file> <report_file> [--top_N=<top_N>] [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
-    FNTexScan study <texture> <report_dir> [--thy_per_tex=<tpt>] [--opt_SM] [--prior_uniform | --prior_wide]
+    FNTexScan study <texture> <report_dir> [--thy_per_tex=<tpt>] [--opt_SM] [--do_priors] [--inverted] [--prior_uniform | --prior_wide]
     FNTexScan -h | -help
 
 Options:
-    --thy_per_tex=<tpt>  Random theories per texture [default: 1,000].
+    --thy_per_tex=<tpt>  Random theories per texture [default: 1000].
     --good_frac=<gf>     Fraction of theories within 5x to consider a texture "good" [default: 0.05].
     --top_N=<top_N>      Report only this number of top-ranked textures, -1 to report all [default: -1].
     --opt_SM             Optimize all parameters (not just epsilon) to fit the Standard Model.
@@ -190,7 +190,9 @@ proc run_study(texture: string, report_dir: string, thy_per_tex: int,
                 opt_SM: bool, do_priors: bool, inverted: bool, 
                 prior_uniform: bool, prior_wide: bool) =
 
+    echo "run_study"
     let this_tex = fromCompactString(texture)
+    echo this_tex
 
     # Set prior type
     var prior_type: TheoryPriorType
