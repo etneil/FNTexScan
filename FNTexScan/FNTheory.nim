@@ -322,24 +322,28 @@ proc getRotationString*(thy: FNTheory): string =
     result &= "Uu,"
     for x in Uu.toFlatSeq():
         result &= $x.re & "," & $x.im & ","
+    result = result[0.. ^2]
     result &= "\n"
 
     result &= "Ud,"
     for x in Ud.toFlatSeq():
         result &= $x.re & "," & $x.im & ","
+    result = result[0.. ^2]
     result &= "\n"
 
     result &= "Ku,"
     for x in Ku.toFlatSeq():
         result &= $x.re & "," & $x.im & ","
+    result = result[0.. ^2]
     result &= "\n"
 
     result &= "Kd,"
     for x in Kd.toFlatSeq():
         result &= $x.re & "," & $x.im & ","
-    result &= "\n"
+    result = result[0.. ^2]
+#    result &= "\n"
 
-    result = result[0.. ^3]
+#    result = result[0.. ^3]
 
 
 
