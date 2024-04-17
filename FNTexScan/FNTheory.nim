@@ -339,7 +339,7 @@ proc getRotationString*(thy: FNTheory): string =
         result &= $x.re & "," & $x.im & ","
     result &= "\n"
 
-    result = result[0.. ^2]
+    result = result[0.. ^3]
 
 
 
