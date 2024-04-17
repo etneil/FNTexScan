@@ -59,6 +59,11 @@ test "rotation matrices":
 
     (Uu, Ud, Ku, Kd) = testThy.reportRotationMatrices()
 
+    echo "Uu: "
+    echo Uu
+    echo "Rotation string: "
+    echo testThy.getRotationString()
+
     # Test unitarity
     let U_test = Uu * Uu.conjugate().transpose()
     let K_test = Ku * Ku.conjugate().transpose()

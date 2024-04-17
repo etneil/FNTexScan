@@ -227,7 +227,16 @@ proc run_study(texture: string, report_dir: string, thy_per_tex: int,
     for key in data_keys:
         # Clobber files
         let f = open(make_file_name(key), fmWrite)
-        f.writeLine(" ")
+        var header: string = ""
+        if key == "thy_data":
+            header = "Cu_re0, Cu_re1, Cu_re2, Cu_re3, Cu_re4, Cu_re5, Cu_re6, Cu_re7, Cu_re8, "
+            header &= "Cu_im0, Cu_im1, Cu_im2, Cu_im3, Cu_im4, Cu_im5, Cu_im6, Cu_im7, Cu_im8, "
+            header &= "Cd_re0, Cd_re1, Cd_re2, Cd_re3, Cd_re4, Cd_re5, Cd_re6, Cd_re7, Cd_re8, "
+            header &= "Cd_im0, Cd_im1, Cd_im2, Cd_im3, Cd_im4, Cd_im5, Cd_im6, Cd_im7, Cd_im8, ln_eps"
+        elif key == "SM_data":
+            header = "Mu1, Mu2, Mu3, Md1, Md2, Md3, V_12, V_23, V_13, J"
+        
+        f.writeLine(header)
         f.close()
 
         # Open files for writing data
@@ -273,11 +282,12 @@ proc run_study(texture: string, report_dir: string, thy_per_tex: int,
         files["xi_data"].writeLine($all_xi[^1])
         files["eps_data"].writeLine($opt_eps)
         files["tuning_data"].writeLine($all_nat[^1])
-        
-        files["rotation_data"].writeLine($Uu.toFlatSeq())
-        files["rotation_data"].writeLine($Ud.toFlatSeq())
-        files["rotation_data"].writeLine($Ku.toFlatSeq())
-        files["rotation_data"].writeLine($Kd.toFlatSeq())
+
+        files["rotation_data"].writeLine(optThy.getRotationString())        
+#        files["rotation_data"].writeLine($Uu.toFlatSeq())
+#        files["rotation_data"].writeLine($Ud.toFlatSeq())
+#        files["rotation_data"].writeLine($Ku.toFlatSeq())
+#        files["rotation_data"].writeLine($Kd.toFlatSeq())
 
     for filename, f in files:
         f.close()

@@ -316,5 +316,31 @@ proc getFullSMParamString*(thy: FNTheory): string =
 
     result = result[0.. ^2]
 
+proc getRotationString*(thy: FNTheory): string =
+    let (Uu, Ud, Ku, Kd) = reportRotationMatrices(thy)
+
+    result &= "Uu,"
+    for x in Uu.toFlatSeq():
+        result &= $x.re & "," & $x.im & ","
+    result &= "\n"
+
+    result &= "Ud,"
+    for x in Ud.toFlatSeq():
+        result &= $x.re & "," & $x.im & ","
+    result &= "\n"
+
+    result &= "Ku,"
+    for x in Ku.toFlatSeq():
+        result &= $x.re & "," & $x.im & ","
+    result &= "\n"
+
+    result &= "Kd,"
+    for x in Kd.toFlatSeq():
+        result &= $x.re & "," & $x.im & ","
+    result &= "\n"
+
+    result = result[0.. ^2]
+
+
 
 
