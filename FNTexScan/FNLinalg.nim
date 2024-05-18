@@ -144,3 +144,72 @@ proc eigh3d*(a: array[9, Complex[float64]]): (array[3, float64], array[9, Comple
 
     result = (w, U)
 
+
+proc eigh3r*(a: array[9, Complex[float64]]): (array[3, float64], array[9, Complex[float64]]) =
+    var aWork: array[9, lapack_complex_double]
+
+    # Compute the eigensystem of the complex Hermitian 3x3 matrix a, using
+    # LAPACK's "zheevr" subroutine.
+
+    for i, x in a:
+        aWork[i] = x.toLCF()
+
+    var
+        jobz = cstring"V"
+        range = cstring"A"
+        uplo = cstring"L"
+        N = 3.cint
+        LDA = 3.cint
+        VL = 0.cdouble
+        VU = 0.cdouble
+        IL = 0.cint
+        IU = 0.cint
+        ABSTOL = 0.cdouble
+        M: cint
+        w: array[3,cdouble]
+        Z: array[9, lapack_complex_double]
+        LDZ = 3.cint
+        ISUPPZ: array[6, cint]
+        work: array[18, lapack_complex_double]
+        lwork = 18.cint
+        rwork: array[72, cdouble]
+        lrwork = 72.cint
+        iwork: array[30,cint]
+        liwork = 30.cint    
+        info: cint
+
+    zheevr(
+        jobz,
+        range,
+        uplo,
+        addr N,
+        aWork.first,
+        addr LDA,
+        addr VL,
+        addr VU,
+        addr IL,
+        addr IU,
+        addr ABSTOL,
+        addr M,
+        w.first,
+        Z.first,
+        addr LDZ,
+        ISUPPZ.first,
+        work.first,
+        addr lwork,
+        rwork.first,
+        addr lrwork,
+        iwork.first,
+        addr liwork,
+        addr info
+    )
+
+    doAssert info == 0
+
+    var U: array[9, Complex[float64]]
+
+    for i, x in Z:
+        U[i] = x.toComplex()
+
+    result = (w, U)
+

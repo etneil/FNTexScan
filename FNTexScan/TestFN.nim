@@ -6,6 +6,129 @@ import FNTheory
 import FNCost
 import random
 import math
+import FNLinalg
+
+test "simple eigenvalue test":
+    let A = [
+        [1.0, -2.0, 0.0],
+        [-2.0, 1.0, 0.0],
+        [0.0, 0.0, 2.0]
+    ].toTensor().asType(Complex[float64])
+
+    var evals: array[3, float64]
+    var U: array[9, Complex[float64]]
+    
+    var A_array: array[9, Complex[float64]]
+
+    for i, x in A.toFlatSeq():
+        A_array[i] = x
+
+    echo "eigh3:"
+
+    (evals, U) = eigh3(A_array)
+
+    echo evals
+    echo U
+
+    echo "eigh3r:"
+
+    for i, x in A.toFlatSeq():
+        A_array[i] = x
+
+    (evals, U) = eigh3r(A_array)
+
+    echo evals
+    echo U
+
+test "small eigenvalue test":
+    let Lambda = [
+        [1e-10, 0.0, 0.0],
+        [0.0, 1e-3, 0.0],
+        [0.0, 0.0, 1.0]
+    ].toTensor().asType(Complex[float64])
+
+    let R = [
+        [complex(0.707107,0.0),  complex(0.0, 0.707107),   complex(-0.0, 0.0)],
+        [complex(0.0,0.707107),  complex(0.707107, 0.0),  complex(0.0, -0.0)],
+        [complex(0.0,0.0),   complex(-0.0, -0.0), complex(1.0, 0.0)]
+    ].toTensor()
+
+    let Rdag = conjugate(R.transpose())
+    let A = Rdag * Lambda * R
+
+    var evals: array[3, float64]
+    var U: array[9, Complex[float64]]
+    var A_array: array[9, Complex[float64]]
+
+    for i, x in A.toFlatSeq():
+        A_array[i] = x
+
+    echo "eigh3:"
+
+    (evals, U) = eigh3(A_array)
+
+    echo evals
+    echo U
+
+    echo "eigh3r:"
+
+    for i, x in A.toFlatSeq():
+        A_array[i] = x
+
+    (evals, U) = eigh3r(A_array)
+
+    echo evals
+    echo U
+
+test "unstable Yukawa test":
+    let Yu = [
+        [ complex(4.03138179e-10, -3.44622002e-10), complex(-1.94658409e-06, 1.10900415e-06),
+  complex(-3.76007814e-05, -1.09248637e-04)],
+        [ complex(1.44240996e-08,1.01225597e-08), complex(-2.66018931e-06,1.00103939e-05),
+  complex(-2.24398670e-03,1.86175377e-03)],
+        [ complex(-3.72600328e-06,1.85063816e-06), complex(5.18083402e-04,-1.43250974e-03),
+  complex(-4.88727283e-01,1.06113560e+00)]
+    ].toTensor()
+
+    let Yudag = conjugate(Yu.transpose())
+
+    let Ysq = (Yu * Yudag).transpose()
+
+    var evals: array[3, float64]
+    var U: array[9, Complex[float64]]
+    var A_array: array[9, Complex[float64]]
+
+    for i, x in Ysq.toFlatSeq():
+        A_array[i] = x
+
+    echo "eigh3:"
+
+    (evals, U) = eigh3(A_array)
+
+    echo evals
+    echo U
+
+    for i, z in evals:
+        echo sqrt(z) * mass_factor
+
+
+    echo "eigh3r:"
+
+    for i, x in Ysq.toFlatSeq():
+        A_array[i] = x
+
+    (evals, U) = eigh3r(A_array)
+
+    echo evals
+    echo U
+
+    for i, z in evals:
+        echo sqrt(z) * mass_factor
+
+
+
+
+
 
 test "create valid FNTexture":
     let testTex = initFNTexture(

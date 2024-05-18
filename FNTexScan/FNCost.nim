@@ -172,8 +172,8 @@ proc optimize_eps*(thy: FNTheory, brute_force = true,
         if iter >= max_iter and verbose:
             echo "Warning: reached max iteration count [", max_iter, "] in optimize_eps."
         else:
-            #doAssert status == 0
-            discard
+            doAssert status == 0
+            #discard
 
         result = exp(leps_min)
 
@@ -200,8 +200,7 @@ proc optimize_SM*(thy: FNTheory): FNTheory =
         params: addr result
     )
 
-    discard gsl_errno.gsl_set_error_handler_off()
-
+    # discard gsl_errno.gsl_set_error_handler_off()
 
     var ss, x: ptr gsl_vector
 

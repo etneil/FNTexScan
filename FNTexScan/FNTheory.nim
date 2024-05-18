@@ -143,10 +143,14 @@ proc getMassMatrix*(Y: Tensor[Complex64]): (array[3, float64], array[9, Complex6
 
     # LAPACK interface seems to be transposing matrix
     # compared to the shape here...
-    for i, x in Y_sq.transpose().toFlatSeq():
+    # Actually, this doesn't seem to matter, same output either way
+#    for i, x in Y_sq.transpose().toFlatSeq():
+    for i, x in Y_sq.toFlatSeq():
         Ysq_array[i] = x
 
-    result = eigh3(Ysq_array)
+    # Using eigh3r instead of eigh3 is about ~2x slower,
+    # but fixes an issue with occasional nans for the up-quark mass.
+    result = eigh3r(Ysq_array)
 
 
 proc getSMParams*(thy: FNTheory): array[25, float64] =
