@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/zsh
+
+export DYLD_LIBRARY_PATH=/opt/homebrew/lib
 
 ./FNTexScan study 3,2,-4,-2,-3,-3,-3 report_1 --thy_per_tex=1000 --opt_SM
 ./FNTexScan study 3,2,-4,-2,-4,-3,-3 report_2 --thy_per_tex=1000 --opt_SM
